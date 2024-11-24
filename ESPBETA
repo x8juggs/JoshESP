@@ -1,0 +1,125 @@
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- Variables
+local localPlayer = Players.LocalPlayer
+local highlightColor = Color3.fromRGB(255, 105, 180) -- Pink for highlighting body parts
+local nameTagColor = Color3.fromRGB(255, 255, 255) -- White for name tags
+local healthBarColor = Color3.fromRGB(0, 255, 0) -- Green for health bar
+local boxColor = Color3.fromRGB(0, 0, 0) -- Black for bounding boxes
+local lineColor = Color3.fromRGB(255, 255, 255) -- White for lines
+
+-- Function to highlight the body parts
+local function highlightBodyParts(character)
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            local highlight = Instance.new("BoxHandleAdornment")
+            highlight.Size = part.Size
+            highlight.Color3 = highlightColor
+            highlight.Transparency = 0.5
+            highlight.AlwaysOnTop = true
+            highlight.Adornee = part
+            highlight.ZIndex = 10
+            highlight.Parent = part
+        end
+    end
+end
+
+-- Function to create ESP for a player
+local function createESP(player)
+    -- Wait for the character to load
+    player.CharacterAdded:Connect(function(character)
+        -- Wait for character parts to load
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+        local humanoid = character:WaitForChild("Humanoid", 10)
+        if not humanoidRootPart or not humanoid then return end
+
+        -- Highlight all body parts
+        highlightBodyParts(character)
+
+        -- Create a BillboardGui for the player's name and health bar
+        local billboard = Instance.new("BillboardGui")
+        billboard.Adornee = humanoidRootPart
+        billboard.Size = UDim2.new(0, 200, 0, 50) -- Adjust size for name and health bar
+        billboard.StudsOffset = Vector3.new(0, 3, 0) -- Position above the character
+        billboard.AlwaysOnTop = true
+        billboard.Parent = humanoidRootPart
+
+        -- Create a TextLabel for the player's name (smaller size)
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Text = player.Name
+        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)  -- Half the size for the name
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.TextColor3 = nameTagColor
+        nameLabel.TextStrokeTransparency = 0.5 -- Makes text more readable
+        nameLabel.TextSize = 7  -- Smaller text size for the name
+        nameLabel.TextScaled = true
+        nameLabel.Parent = billboard
+
+        -- Create a Frame for the health bar background
+        local healthBarBackground = Instance.new("Frame")
+        healthBarBackground.Size = UDim2.new(0, 100, 0, 10)  -- Fixed background size for the health bar
+        healthBarBackground.Position = UDim2.new(0, -105, 0, 10)  -- Position to the left of the player
+        healthBarBackground.BackgroundColor3 = Color3.fromRGB(0, 0, 0)  -- Black background for the health bar
+        healthBarBackground.Parent = billboard
+
+        -- Create the actual health bar (it will be resized based on health)
+        local healthBar = Instance.new("Frame")
+        healthBar.Size = UDim2.new(0, 100, 0, 10)  -- Start with full width
+        healthBar.Position = UDim2.new(0, 0, 0, 0)  -- Position inside the health bar background
+        healthBar.BackgroundColor3 = healthBarColor  -- Green for the health bar
+        healthBar.Parent = healthBarBackground
+
+        -- Create a SelectionBox around the character (bounding box)
+        local selectionBox = Instance.new("SelectionBox")
+        selectionBox.Adornee = character
+        selectionBox.Color3 = boxColor -- Set to black for the box
+        selectionBox.Transparency = 0.5
+        selectionBox.Parent = character
+
+        -- Function to update health bar
+        local function updateHealthBar()
+            -- Continuously update the health bar based on the player's health
+            while character and character.Parent do
+                if humanoid and humanoid.Health and humanoid.MaxHealth then
+                    -- Calculate health percentage
+                    local healthPercentage = humanoid.Health / humanoid.MaxHealth
+                    healthBar.Size = UDim2.new(healthPercentage, 0, 1, 0) -- Update health bar size
+                end
+                wait(1) -- Refresh every second
+            end
+        end
+
+        -- Start updating the health bar
+        spawn(updateHealthBar)
+    end)
+end
+
+-- Apply ESP to all current players and future players
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= localPlayer then
+        createESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if player ~= localPlayer then
+        createESP(player)
+    end
+end)
+
+-- Refresh ESP every second for all players
+while true do
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            -- Refresh ESP if necessary (e.g., if a player joins or a new body part is loaded)
+            if player.Character:FindFirstChild("HumanoidRootPart") then
+                -- Highlight new players and their body parts
+                highlightBodyParts(player.Character)
+            end
+        end
+    end
+    wait(1) -- Refresh every second
+end
